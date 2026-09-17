@@ -1,0 +1,33 @@
+export type RunStatus = "queued" | "running" | "completed" | "cancelled" | "failed";
+export type PageStatus = "fetched" | "failed" | "skipped";
+export type Heading = { level: number; text: string };
+export type Redirect = { url: string; status: number; destination: string };
+export type SchemaEntry = { valid: boolean; value?: unknown; error?: string };
+export type Discovery = {
+  origin: string;
+  robotsUrl: string;
+  robotsStatus: number;
+  robotsText: string;
+  rootAllowed: boolean;
+  sitemapUrls: string[];
+  pageUrls: string[];
+  warnings: string[];
+  truncated: boolean;
+  discoveredAt: string;
+};
+export type CrawlSettings = { pageLimit: number; excludedPaths: string[] };
+export type ProjectInput = {
+  name: string;
+  companyName: string;
+  primaryDomain: string;
+  category: string;
+  description: string;
+  targetCustomer: string;
+  market: string;
+  conversionEvent: string;
+  brandAliases: string[];
+  productNames: string[];
+  pageLimit: number;
+  excludedPaths: string[];
+  competitors: { name: string; domain: string }[];
+};

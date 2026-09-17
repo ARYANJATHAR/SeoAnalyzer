@@ -1,0 +1,10 @@
+/* Shared landing-card treatment, approved from the supplied Gleap reference.
+   Includes the hero product-preview card. Keep the workspace and page canvas neutral. */
+.frame { position: relative; isolation: isolate; padding: 10px; border-radius: 14px; overflow: hidden; }
+.blue { background: radial-gradient(ellipse at 98% 2%, #d6aacb 0%, transparent 44%), radial-gradient(ellipse at 62% 115%, #b8d9e6 0%, transparent 43%), linear-gradient(130deg, #448bba 8%, #8fb5d5 57%, #999dcd 100%); }
+.teal { background: radial-gradient(ellipse at 100% 0%, #9acddd 0%, transparent 48%), radial-gradient(ellipse at 85% 95%, #b6d3c8 0%, transparent 38%), linear-gradient(130deg, #547eb7 10%, #8a9ecb 58%, #659aa7 100%); }
+.rose { background: radial-gradient(ellipse at 5% 95%, #c4b8d7 0%, transparent 48%), radial-gradient(ellipse at 92% 0%, #efd6c9 0%, transparent 50%), linear-gradient(135deg, #bb91a6, #d4bcca 62%, #a1b9cc); }
+.stone { background: radial-gradient(ellipse at 8% 12%, #c4d9d4 0%, transparent 45%), radial-gradient(ellipse at 100% 100%, #b6bacf 0%, transparent 50%), linear-gradient(135deg, #a8b8bd, #d9d4c6 54%, #929fae); }
+.frame::before { content: ""; position: absolute; inset: -45%; z-index: -1; pointer-events: none; transform: rotate(-33deg); background: repeating-linear-gradient(90deg, transparent 0 19%, #ffffff18 19.5% 21%, transparent 22% 28%, #ffffff40 29%, transparent 31% 47%); }
+.surface { height: 100%; background: #f5f6f9c9; border: 1px solid #ffffff30; border-radius: 7px; }
+@media (max-width: 540px) { .frame { padding: 8px; } }

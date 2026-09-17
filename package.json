@@ -1,0 +1,48 @@
+{
+  "name": "answerlens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "concurrently -k -n web,crawler,profile \"next dev --hostname 127.0.0.1\" \"tsx watch jobs/worker.ts\" \"tsx watch jobs/ai-worker.ts\"",
+    "build": "next build",
+    "start": "concurrently -k -n web,crawler,profile \"next start --hostname 127.0.0.1\" \"tsx jobs/worker.ts\" \"tsx jobs/ai-worker.ts\"",
+    "worker:ai": "tsx jobs/ai-worker.ts",
+    "worker": "tsx jobs/worker.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test:audit": "tsx --test tests/audit/engine.test.ts",
+    "test:profile": "tsx --test tests/profile/profile.test.ts"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.0",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "better-sqlite3": "^12.0.0",
+    "cheerio": "^1.1.2",
+    "concurrently": "^9.2.0",
+    "dotenv": "^17.2.0",
+    "drizzle-orm": "^0.45.0",
+    "fast-xml-parser": "^5.3.0",
+    "ipaddr.js": "^2.2.0",
+    "lucide-react": "^0.468.0",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "robots-parser": "^3.0.1",
+    "tsx": "^4.20.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.0.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0"
+  }
+}

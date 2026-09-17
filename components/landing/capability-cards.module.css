@@ -1,0 +1,65 @@
+.section { width: min(1200px, calc(100% - 96px)); margin: 0 auto; padding: 0 0 100px; }
+.heading { margin-bottom: 36px; }
+.heading h2 { font-size: clamp(32px, 3.7vw, 48px); line-height: 1.13; letter-spacing: -.04em; font-weight: 400; }
+.heading h2 span { color: var(--color-slate-caption); }
+.heading p { margin-top: 18px; font-size: 14px; color: var(--color-slate-caption); }
+.track { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 24px) / 2); gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; border-radius: 14px; }
+.track::-webkit-scrollbar { display: none; }
+.frame { min-height: 356px; scroll-snap-align: start; }
+.card { display: flex; flex-direction: column; height: 100%; min-height: 336px; padding: 25px 24px 22px; }
+.copy h3 { font-size: 19px; line-height: 1.4; letter-spacing: -.025em; font-weight: 400; }
+.copy p { margin-top: 5px; max-width: 440px; font-size: 15px; line-height: 1.7; color: #565963; }
+.link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 12px; }
+.link:hover { text-decoration: underline; text-underline-offset: 4px; }
+.bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-top: auto; padding-top: 48px; }
+.figure > span { display: block; font-size: clamp(62px, 6.4vw, 86px); letter-spacing: -.055em; line-height: .95; font-weight: 400; font-variant-numeric: lining-nums; }
+.figure small { display: block; font-size: 12px; color: #565963; margin-top: 10px; }
+.signature { display: inline-flex; align-items: center; gap: 7px; padding: 10px 12px; background: #ffffffdf; border-radius: 9px; flex-shrink: 0; font-size: 16px; font-weight: 500; letter-spacing: -.04em; }
+.signature small { display: block; font-size: 8px; font-weight: 400; letter-spacing: 0; color: var(--color-slate-caption); margin-top: 1px; }
+.controls { display: flex; align-items: center; gap: 16px; margin-top: 15px; }
+.buttons { display: flex; gap: 8px; }
+.buttons button { display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--color-warm-stone); color: var(--color-iron-nav); width: 42px; height: 42px; transition: background .15s ease; }
+.buttons button:hover:not(:disabled) { background: var(--color-quartz); }
+.buttons button:disabled { opacity: .35; }
+.controls p { font-size: 11px; color: var(--color-slate-caption); font-variant-numeric: tabular-nums; }
+.disclosure { margin-left: auto; color: var(--color-slate-caption); font-size: 10px; }
+@media (max-width: 1100px) {
+  .section { width: calc(100% - 64px); }
+  .track { gap: 18px; grid-auto-columns: calc((100% - 18px) / 2); }
+  .card { padding: 22px 20px; min-height: 350px; }
+  .copy h3 { font-size: 18px; }
+  .copy p { font-size: 13px; }
+  .signature { padding: 9px; font-size: 13px; }
+  .signature svg { width: 21px; }
+}
+@media (max-width: 800px) {
+  .section { width: calc(100% - 48px); padding-bottom: 75px; }
+  .track { grid-auto-columns: 100%; }
+  .card { min-height: 330px; padding: 26px; }
+  .copy h3 { font-size: 21px; }
+  .copy p { font-size: 15px; }
+  .figure > span { font-size: 80px; }
+  .signature { font-size: 16px; padding: 10px 12px; }
+  .signature svg { width: 25px; }
+}
+@media (max-width: 540px) {
+  .section { width: calc(100% - 36px); padding-bottom: 60px; }
+  .heading h2 { font-size: 33px; }
+  .heading p { font-size: 13px; max-width: 280px; }
+  .frame { min-height: 365px; }
+  .card { min-height: 349px; padding: 22px 18px; }
+  .copy h3 { font-size: 19px; }
+  .copy p { font-size: 13px; }
+  .bottom { gap: 10px; padding-top: 34px; }
+  .figure > span { font-size: 64px; }
+  .figure small { font-size: 10px; }
+  .signature { font-size: 12px; padding: 9px 8px; gap: 5px; }
+  .signature svg { width: 20px; }
+  .signature small { font-size: 7px; }
+  .controls { flex-wrap: wrap; gap: 12px; }
+  .disclosure { flex-basis: 100%; margin-left: 0; font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track { scroll-behavior: auto; }
+  .buttons button { transition: none; }
+}
