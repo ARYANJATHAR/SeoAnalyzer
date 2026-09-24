@@ -1,7 +1,7 @@
 import { and, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { database } from "../index";
-import { brands, crawlRuns, pages, previews, projects } from "../schema";
+import { brands, crawlRuns, pages, previews, projects, researchFlows } from "../schema";
 import type { ProjectInput } from "../../lib/types";
 import { domainKey, InputError } from "../../lib/security/url";
 
@@ -31,6 +31,7 @@ export function saveProject(input: ProjectInput, id?: string) {
     const { competitors, ...values } = input;
     if (id) {
       getProject(id);
+      if (tx.select().from(researchFlows).where(and(eq(researchFlows.projectId, id), eq(researchFlows.status, "running"))).get()) throw new InputError("Stop the current analysis before changing project settings.", 409);
       const pending = tx.select().from(crawlRuns).where(and(eq(crawlRuns.projectId, id), inArray(crawlRuns.status, ["queued", "running"]))).get();
       if (pending) throw new InputError("Wait for the active crawl or cancel it before changing project settings.", 409);
       tx.update(projects).set({ ...values, updatedAt: now }).where(eq(projects.id, id)).run();

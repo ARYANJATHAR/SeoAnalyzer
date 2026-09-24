@@ -1,4 +1,4 @@
-import { Workspace } from "@/components/workspace";
+import { ResearchHome } from "@/components/research-home";
 export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
-  return <Workspace projectId={(await params).projectId} view="overview" />;
+  return <ResearchHome projectId={(await params).projectId} />;
 }

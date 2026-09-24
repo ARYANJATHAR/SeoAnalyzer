@@ -3,18 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "dev": "concurrently -k -n web,crawler,profile \"next dev --hostname 127.0.0.1\" \"tsx watch jobs/worker.ts\" \"tsx watch jobs/ai-worker.ts\"",
+    "dev": "concurrently -k -n web,crawler,profile,questions,insights \"next dev --hostname 127.0.0.1\" \"tsx watch jobs/worker.ts\" \"tsx watch jobs/ai-worker.ts\" \"tsx watch jobs/question-worker.ts\" \"tsx watch jobs/insights-worker.ts\"",
     "build": "next build",
-    "start": "concurrently -k -n web,crawler,profile \"next start --hostname 127.0.0.1\" \"tsx jobs/worker.ts\" \"tsx jobs/ai-worker.ts\"",
+    "start": "concurrently -k -n web,crawler,profile,questions,insights \"next start --hostname 127.0.0.1\" \"tsx jobs/worker.ts\" \"tsx jobs/ai-worker.ts\" \"tsx jobs/question-worker.ts\" \"tsx jobs/insights-worker.ts\"",
+    "worker:questions": "tsx jobs/question-worker.ts",
     "worker:ai": "tsx jobs/ai-worker.ts",
     "worker": "tsx jobs/worker.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:audit": "tsx --test tests/audit/engine.test.ts",
-    "test:profile": "tsx --test tests/profile/profile.test.ts"
+    "test:profile": "tsx --test tests/profile/profile.test.ts",
+    "test:questions": "tsx --test tests/questions/rules.test.ts",
+    "worker:insights": "tsx jobs/insights-worker.ts",
+    "test:insights": "tsx --test tests/insights/rules.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.0",

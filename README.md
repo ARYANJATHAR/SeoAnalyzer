@@ -1,8 +1,174 @@
 # AnswerLens
 
-A local-first website research workspace for a B2B company's AI discoverability. The complete product specification lives in [plan.md](plan.md), and [DESIGN](DESIGN/DESIGN.md) supplies the primary visual theme.
+A local-first website research workspace for a B2B company's AI discoverability. The local plan.md is the functional specification; DESIGN supplies the primary visual theme. Markdown files other than this README intentionally stay out of Git.
 
-## Current scope: Phases 1–3
+## Complete workflow: Phases 1–9
+
+**Code status:** Phases 1–9 and the simplified automatic workflow are implemented. The September 2026 UX update passed the production build, TypeScript check, lint and all 40 existing unit tests. Browser/UI testing, live AI requests and end-to-end workflow verification were not performed in this update.
+
+### Simpler workspace
+
+- **Home:** a three-step progress summary, saved AI results, suggested improvements and the main website findings.
+- **AI results:** a plain-language result such as “Your brand appeared in 6 of 10 answers,” followed by the original answers in groups of five.
+- **Action plan:** the first three suggested improvements, with instructions and evidence available on demand. The full 30-day/90-day plan remains expandable.
+- **Report:** the printable report and optional data downloads.
+- **Explore details:** website checks, content ideas, company details, buyer questions, competitors and sources. Advanced filters, refresh controls and calculations stay expandable.
+- Setup needs only a website address; extra company context stays optional. The existing DESIGN theme remains in use.
+
+### Checks completed for the UX update
+
+| Check | Result |
+| --- | --- |
+| `npm run build` | Passed, including production TypeScript and page generation |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with no warnings |
+| `npm run test:audit` | 16 passed |
+| `npm run test:profile` | 8 passed |
+| `npm run test:questions` | 6 passed |
+| `npm run test:insights` | 10 passed |
+
+These are code-level checks. No browser was opened, no UI automation was run, and no live AI analysis was started. Earlier phase checklists below describe manual verification still available to the owner.
+
+### In easy words
+
+Enter a website and choose **Analyze website**. AnswerLens reads public pages, checks website issues, creates a company profile, suggests buyer questions, reads configured competitor sites, checks independent AI answers, and prepares content improvements and a 30-day/90-day plan.
+
+The overview stays short. Sources, technical findings, question customization and advanced sampling options are expandable. There is no human approval queue or user-facing key/endpoint configuration. Actual answer-source/model identifiers remain in measurement details so coverage is accurately disclosed.
+
+**The AI allowance was not changed.** The existing default is **50 lifetime request attempts per project**, shared by all AI tasks, not a daily reset. Twenty questions normally need about 40 requests for answers and analysis, plus profiles, question generation and content analysis. Retries consume more. A complete workflow can therefore stop partially under the default budget. The owner can adjust `AI_REQUEST_BUDGET`, restart and resume unfinished work. Provider quotas remain authoritative; unlimited free access is not promised.
+
+### Restart after updating
+
+- Preserve the existing database and `.env.local`. No dependency was added for phases 5–9.
+- `npm run dev` starts **five processes**: web, crawler, profile, questions/orchestration and insights.
+- `npm run worker:insights` starts the new worker separately.
+- Migrations `0006_guided_analysis.sql`, `0007_visibility_and_insights.sql` and `0008_complete_analysis_flow.sql` apply automatically on the next app/database start. They have not been executed by the coding agent.
+- All processes need the same working directory and database path. Closing the browser does not stop work; stopping local workers does.
+- Current project location: `D:\PROJECTS\Personal projecs\websites\SEO ANALYER`. The saved Codex workspace path points to the old location.
+
+### Remaining phase deliverables
+
+| Phase | Implemented code |
+| --- | --- |
+| 5 | Durable experiments; 1/3/5 answer samples; isolated answering; raw prompts/answers/citations/model/time/usage capture; structured mentions, recommendations, sentiment, refusals and claim comparison; cancellation/resume; one-answer and multiline quoted CSV import. |
+| 6 | Mention/recommendation/citation/website-agreement rates; weighted share; sample counts and Wilson intervals; buyer-stage and competitor views; citation domains/top-five concentration; date/persona/stage/type/question/source filters; history and comparable-setup lookup. |
+| 7 | Semantic page inventory; quoted question matches; eight readiness components with 60 rule-based and 40 AI points; explicit missing components; separate site averages; competitor coverage matrix; content/evidence gaps. |
+| 8 | Evidence-linked prioritized actions with owner, effort, expected result and acceptance criteria; first-30-day and 90-day plans; printable HTML/browser PDF; five CSV datasets and JSON research backup. |
+| 9 | Idempotent fictional demo without keys; two saved answer cycles and content fixtures; visible synthetic labels; four-step tour; responsive and keyboard-friendly controls; loading/empty/error/progress states; portfolio case study and demo script below. |
+
+### Evidence, limits and recovery
+
+- Live answering receives only the buyer question and geographic context. No target profile, website facts or previous conversation is injected. A separate analysis call receives the saved answer and frozen source facts.
+- Source facts remain website claims, not human-confirmed truth. Structured output, quote occurrence and reference IDs are validated; semantic judgments can still be wrong.
+- Fresh monitoring creates new answers. Resume preserves completed answers and retries analysis against already-saved text. Truncated live answers are retried and excluded from metrics until complete.
+- Database claims, heartbeats and ownership checks protect workers. After a three-minute interruption, unfinished work becomes partial and can be resumed. A remote request may already have consumed quota before interruption; exact-once remote billing is not guaranteed.
+- Stop prevents subsequent stages being queued and aborts active requests when workers observe cancellation. Public discovery already in progress may finish, but cannot queue its result into a stopped flow.
+- Imports retain raw text, supplied tool/model, observation date and notes. They remain separate from live experiments. Unmatched imported questions receive generic research-stage/type/intent metadata and are not added to the editable question library automatically.
+- Metrics include completed, analyzed, nontruncated answers; analyzed refusals stay in the denominator. Failed, missing, truncated and unanalyzed rows are disclosed and excluded.
+- Citation rate divides target-linked answers by answers with any captured URL. Provider annotations, text links and manual links retain provenance. The analyzer never fetches these URLs; a link is not proof of browsing, validity or influence.
+- Share weights: discovery/education 1; research/risk review 2; comparison/purchase 3. Recommendation position excludes absent brands and answers without explicit recommendation lists.
+- Agreement excludes unverifiable/time-sensitive claims. Conflicting website facts prevent a supported/contradicted conclusion.
+- Readiness is an internal diagnostic, not an AI ranking factor. Missing dates/components stay unknown; partial points are never normalized to 100.
+- Content uses up to 12 readable pages per website, homepage first then URL order, with at most 12,000 saved text characters per page. A missing match refers to these excerpts, not the whole website.
+- Site scores average analyzed pages and disclose evaluated weight. Gap/action URLs point to recorded evidence; recommendation outcomes are not guaranteed.
+- Reports escape HTML; CSV neutralizes formula-leading cells; JSON excludes secrets, owner configuration and the request ledger. Automatic JSON restore is not implemented.
+- Updates preserve edited questions and historical results. Recrawls create fresh bounded snapshots; conditional HTTP revalidation is not implemented.
+
+### Owner checks: automatic workflow
+
+These are instructions to run, not completed checks.
+
+- [ ] Back up local data with all five processes stopped. Restart and confirm old projects, pages, facts and questions remain.
+- [ ] Create a project using only a website. Watch the stages through to answer results and content plans.
+- [ ] Close/reopen the browser. Stop at different stages; no later work should be queued after stop.
+- [ ] Inspect the short overview and expandable technical/profile/question details.
+- [ ] Add competitor websites and rerun. Inspect comparable evidence; failures must mark coverage incomplete without inventing results.
+- [ ] Try missing keys, unavailable models and exhausted allowance. Saved work must remain available with plain failure/partial messages.
+- [ ] Change the target website after stopping work. Old target completion must not become completion for the new target.
+- [ ] Update a website after editing questions; preserve edits and selection while producing fresh answer samples.
+
+### Owner checks: Phase 5
+
+- [ ] When ready, run `npm run typecheck`, `npm run lint`, `npm run test:insights`, the existing audit/profile/questions suites and `npm run build`. The new test source covers denominators, alias boundaries, URL safety, CSV parsing/formula protection and Wilson intervals. It does not establish live integration correctness.
+- [ ] Run 20 selected questions with 1/3/5 samples within the configured allowance: expect 20/60/100 planned answers.
+- [ ] Inspect exact answering prompts: no company profile/source facts; only the question and geography.
+- [ ] Inspect saved text, timestamps, actual source/model, mention order, recommendations, sentiment, reasons, limitations, refusal and claim evidence.
+- [ ] Exercise refusal, truncation, timeout and invalid structured output. They must not silently become successful zero-performance results.
+- [ ] Stop and resume; completed answers must stay unchanged and analysis retries must reuse saved raw text.
+- [ ] Interrupt the insights worker, restart after three minutes and resume. Lost workers must not overwrite current ownership.
+- [ ] Exercise both endpoint backup directions using owner configuration; retain actual served-model/source groups.
+- [ ] Import one answer and CSV with BOM, quoted commas, embedded newlines and escaped quotes. Preserve raw content and manual labels.
+- [ ] Reject malformed quoting, invalid/duplicate headers, invalid/future dates and unsafe citation URLs.
+- [ ] Exhaust allowance, raise it as owner, restart and resume. Use the updated allowance without rewriting previous answers or their generation settings.
+- [ ] Try another project's run/answer IDs through a different project route; reject cross-project access.
+
+### Owner checks: Phase 6
+
+- [ ] Count mentions/recommendations by hand and compare numerators, denominators and answer evidence.
+- [ ] Verify eligibility for refused, failed, unanalyzed and truncated answers.
+- [ ] Zero eligible answers must produce unavailable metrics; no links must produce an unavailable citation rate.
+- [ ] Check a legitimate target subdomain and a misleading suffix such as `target.example.evil.example`.
+- [ ] Recalculate weighted share, recommendation-list-only position and absence counts.
+- [ ] Verify source agreement excludes unknown/time-sensitive claims and leaves conflicts unresolved.
+- [ ] Filter date, persona, stage, type, question text and answer source; counts and supporting answers must change together.
+- [ ] Inspect history/comparable setup. Different questions, sample counts, generation settings or tracked brands must not be called identical.
+- [ ] Inspect actual served-model groups after failover. Small samples should be directional; Wilson intervals must disclose their limits.
+
+### Owner checks: Phase 7
+
+- [ ] Inspect all components of target and competitor page scores. Rule components total 60 possible points, AI components 40.
+- [ ] Missing dates must stay unknown. Stop/exhaust allowance mid-job: keep available rule checks and explicit partial denominators.
+- [ ] Inspect quoted question matches, products, topic, page type, buyer stage, collection time/hash and identical-text links.
+- [ ] Inspect the coverage matrix for covered and uncovered questions. Site averages must name analyzed page counts and available weight.
+- [ ] Inspect gap URLs and exact target/competitor passages. No-match findings must name the target sample and excerpt limits.
+- [ ] Review performance-claim evidence gaps and differing-company-detail actions; missing support in an excerpt must not be called a false claim.
+- [ ] Resume a partial job without regenerating completed page analysis.
+
+### Owner checks: Phase 8
+
+- [ ] Each action has reason, evidence, relevant URLs/questions, owner, effort, confidence, expected result and acceptance criteria.
+- [ ] Recalculate priorities: commercial impact 35%, visibility gap 25%, confidence 15%, relevance 15%, ease 10%.
+- [ ] Inspect 30-day/90-day grouping and repeat date; no guaranteed visibility/citation outcomes.
+- [ ] Open the report and print to PDF. Inspect all sections, page breaks, long URLs and coverage disclosures.
+- [ ] Download all five CSV types and JSON; inspect multiline answers, snapshots, demo flags, no credentials/configuration and formula protection.
+- [ ] Put HTML tags/formula prefixes in imported/custom text; they must remain inert in UI, reports and spreadsheets.
+- [ ] Exports must not initiate AI requests.
+
+### Owner checks: Phase 9
+
+- [ ] With no keys, open **Explore the demo** from Landing/Projects. Reopen it: only one fictional project should exist.
+- [ ] Visit demo screens, answers and reports; synthetic labels must stay visible and no live crawl/AI call should run.
+- [ ] Follow all four tour steps and inspect both fixture cycles and the content plan.
+- [ ] Try narrow screens and keyboard-only navigation, visible focus, native disclosures, filters, pagination, empty/error/retry states.
+- [ ] Confirm live projects do not inherit demo records and still enforce public-URL protections.
+- [ ] Follow the demo script below and record usability/accessibility findings.
+
+Record passed, failed or untested items with reproduction steps and sanitized errors. All new acceptance criteria remain unverified until the owner checks them.
+
+### Portfolio case study
+
+**Problem:** Marketing teams need to connect AI answer observations with company facts, competitor coverage and practical improvements.
+
+**Method:** Collect public HTML, preserve source passages, generate buyer research, sample independent answers, compare them with frozen website claims and turn findings into evidence-linked actions. Deterministic observations and AI judgments remain distinct.
+
+**Implementation result:** The code connects website collection to saved answer evidence, scoped metrics, content gaps, plans and exports. This is an implementation statement, not a claim of tested correctness, deployment success, adoption or improved brand visibility.
+
+**Tradeoffs:** Local SQLite/workers simplify operation but must stay running. Public HTML can miss JavaScript content. Bounded samples reduce usage and coverage. NVIDIA/OpenRouter backup may share upstream infrastructure. Website claims are an imperfect factual reference.
+
+**Evaluation limits:** Real model behavior, resilience, migration safety, accessibility and print quality await owner verification. Demo values are fictional and must not be marketed as achieved outcomes. Repeated answers are not independent market samples, and observed changes do not establish causation.
+
+### Three-minute demo script
+
+- **0:00–0:30:** Open the labeled demo; explain the live website-only starting point.
+- **0:30–1:10:** Show Visibility, the sample count and one exact saved question/answer with claim evidence.
+- **1:10–1:45:** Show competitor comparison and a content gap; open page passages and explain sample limits.
+- **1:45–2:20:** Show the top actions, one acceptance checklist and the 30-day/90-day plan.
+- **2:20–3:00:** Open the printable report and exports; distinguish the fictional example from real measurements and explain limitations.
+
+## Earlier phase implementation notes
+
+The following notes preserve earlier implementation guidance. Their manual tools now live in expandable details; the automatic workflow above is the default.
+
 
 Website collection (Phase 1):
 
@@ -17,9 +183,9 @@ Website collection (Phase 1):
 - Page inventory with website/status/search/history filters and pagination.
 - Accessible page evidence drawer: title, description, headings, extracted text, links, JSON-LD, canonical, language, robots directives, hashes, status, and recorded redirect chains, including failed redirects.
 
-The repository originally contained only the specification and design folder. The minimum Phase 0 app/database foundation is included so Phase 1 has a runnable structure. The full seeded portfolio demo belongs to Phase 9.
+The repository originally contained only the specification and design folder. The minimum Phase 0 app/database foundation is included so Phase 1 has a runnable structure. The complete seeded demonstration is described above.
 
-**Verification status:** The owner confirmed Phase 1 crawling works and authorized Phase 3. Phases 2 and 3 are written; verification remains with the owner. The coding agent has not run tests, type checks, lint, builds, migrations, application previews, or authenticated AI requests for Phase 3.
+**Historical Phase 4 verification status:** The owner confirmed Phase 1 crawling works and authorized implementation through Phase 9. Phases 2–4 are written; verification remains with the owner. The coding agent has not run tests, type checks, lint, builds, migrations, application previews, or authenticated AI requests for Phase 4.
 
 ### Technical audit (Phase 2)
 
@@ -36,36 +202,59 @@ Restart the local web application and worker to pick up the new code and automat
 
 See [audit methodology](docs/audit-methodology.md) for thresholds, evidence scope, and known limitations. No composite SEO or AI visibility score is invented.
 
-### AI providers and company profile (Phase 3)
+### Company profile (Phase 3)
 
-- **Company profile** navigation at `/projects/[projectId]/profile`, for the target website and competitors.
-- NVIDIA and OpenRouter behind a common adapter. Either can be primary, with optional reciprocal backup using the same explicitly mapped model.
-- Default: **Nemotron 3 Super 120B A12B**. Six curated shared model mappings, live catalog checks and free-only OpenRouter routing; no silent paid-model substitution.
-- Server-environment keys, credential validation, generation limits and a project-wide request budget.
-- Source selection and usage estimates before a separate worker extracts facts from saved pages.
-- Zod output validation, source-quote matching, one bounded repair attempt, and unreviewed model proposals.
-- Accept/reject/edit facts, add sourced human-confirmed facts, inspect page evidence, and preserve review revisions.
-- Deterministic potential-contradiction groups that retain both claims for human resolution.
-- Attempt-level usage ledger, cancellation, partial results, stale-worker recovery, and reuse of completed selections/validated exact page requests.
+**In plain language:** Phase 1 collects website pages. Phase 2 finds technical issues. Phase 3 reads the saved page text and turns it into an organized company profile.
 
-Research on **September 17, 2026** found 24 OpenRouter entries with zero prompt/completion prices and 82 NVIDIA catalog entries. These include specialized models; NVIDIA's count is not a verified count of unrestricted free chat models. See [provider research and model IDs](docs/ai-providers.md) for the six shared choices and sources. The app refreshes availability rather than relying solely on this snapshot.
+The output includes company descriptions, products, features, target customers, use cases, integrations, pricing and other claims that the selected pages support. Every detail includes a source quote, URL and collection time. Missing information is left out. Differing claims are shown together without inventing a winner. This is website understanding, not an AI visibility score or proof that the claims are true.
 
-**Backup limitation:** OpenRouter's default free Nemotron route lists NVIDIA as its upstream. Endpoint switching can help with some API/key/quota problems, but cannot guarantee recovery from a shared upstream outage.
+The user flow is **choose saved pages → Create company profile → read the results**. Results appear automatically as pages finish. Search, topic filters, source inspection, progress, stopping work and saved-result reuse remain available. There is no human-review queue, accept/reject step, manual fact form or provider configuration in the product.
 
-#### Set up Phase 3
+The user's latest instruction supersedes the original human-review requirement in `plan.md`. Existing review records are preserved; previously rejected facts remain excluded. New extracted facts are not relabeled human-confirmed.
 
-1. Create keys at [NVIDIA Build](https://build.nvidia.com) and [OpenRouter](https://openrouter.ai/settings/keys). One provider can work; both keys are needed to use both backup paths.
-2. Edit your existing `.env.local` and set `NVIDIA_API_KEY` and `OPENROUTER_API_KEY`. Use `.env.example` as a reference; do not overwrite an existing environment file. Never use `NEXT_PUBLIC_` for keys or place them in browser code.
-3. Restart with `npm run dev`. Migration `0004_company_profile.sql` applies automatically. The command now starts the web app, crawl worker and company-profile worker. Keep the existing database.
-4. Open **Company profile → AI providers & request budget**, choose settings and save. Defaults: NVIDIA primary, backup enabled, Nemotron 3 Super, 4,096 output tokens, temperature 0.1, 60-second timeout, 50 total project requests, up to six pages per extraction.
-5. **Validate saved configuration** for each configured provider. Validation uses a tiny real inference request and consumes request allowance; public catalog reads alone do not validate a key.
-6. Select a website/crawl and source pages. Review the data disclosure and estimate, then **Extract facts**. Review proposals and confirm only claims you accept.
+#### Server owner setup
 
-Only selected public page text, source URL and collection time are sent for extraction. Project notes and confirmed facts are not sent. Provider data policies apply. Crawling, audits and manually adding sourced facts still work without AI keys.
+1. Add `NVIDIA_API_KEY` and `OPENROUTER_API_KEY` to the existing `.env.local`. These are still required for the backend to call the services; end users never enter keys or choose providers.
+2. Restart with `npm run dev`. The command starts the web app and the crawl, profile, question and insights workers; pending migrations apply automatically. Preserve the existing database.
+3. Open **Company profile**, select a saved crawl and pages, then **Create company profile**.
+
+Defaults are NVIDIA primary, OpenRouter backup, Nemotron 3 Super, a 50-request lifetime budget per project, and up to six pages per extraction. Owner-only overrides in `.env.local`: `AI_PRIMARY_PROVIDER`, `AI_FALLBACK_ENABLED`, `AI_MODEL`, `AI_REQUEST_BUDGET`, `AI_PAGE_LIMIT`, `AI_MAX_TOKENS`, `AI_TEMPERATURE`, `AI_TIMEOUT_SECONDS`. See `.env.example`. Explicit environment values override saved settings. Restart after changes; start a new job after raising an exhausted budget.
+
+There are six curated shared model mappings, live availability checks, free-only OpenRouter routing, bounded retries, schema and quote validation, cancellation, caching and a local usage ledger. Provider settings and diagnostics are backend concerns, absent from the profile UI and its normal data responses. Legacy localhost-only administration endpoints remain available for owner diagnostics; they are not a hosted administration boundary.
+
+Research on September 17, 2026 found 24 OpenRouter entries with zero prompt/completion prices and 82 NVIDIA catalog entries, including specialized models. NVIDIA's count is not proof of unrestricted free access. The default OpenRouter route shares NVIDIA upstream, so backup cannot guarantee recovery from a shared outage. See [provider research](docs/ai-providers.md).
+
+Only selected public page text, URLs and collection times are sent for extraction. Project notes and existing profile facts are not sent. Exact source quotes and structured output are checked before saving results. The backend retains detailed usage and error records without showing service configuration to users.
+
+### Buyer types and question library (Phase 4)
+
+**In plain language:** Phase 3 explains what the company does. Phase 4 suggests who might buy it and what they might ask before choosing a product.
+
+Open **Questions** after creating a company profile, then choose **Generate buyer research**. The output includes:
+
+- Two to four suggested buyer types, with role, company type, main problem, purchase criteria, objections, technical familiarity and commercial importance. These are hypotheses, not verified customer segments.
+- A baseline of 30 distinct questions, tagged by buyer type, journey stage, question type, geography, buying intent (1–5), potentially relevant brands and information needed for an accurate answer.
+- Both branded and non-branded questions, with informational and commercial intent. Missing information is listed as an answer need rather than invented as a product fact.
+- Up to 20 recommended selections, favoring commercial intent while covering available stages, buyer types and branded/non-branded wording. The first successful generation selects these if no selection exists. You can select fewer, replace the picks or clear them.
+- Optional editing, custom buyer types/questions, archiving/restoring, search, filters, pagination and source evidence. There is no approval queue or provider configuration in the product.
+- A **future-run estimate** for one, three or five answers per selected question. This does not create an experiment, send questions for answers or reserve allowance. Execution is now available in Visibility; this legacy estimate does not start a run.
+
+#### Phase 4 setup and behavior
+
+1. Keep existing server keys and database. Restart `npm run dev`; migration `0005_buyer_questions.sql` applies automatically.
+2. The command now runs five processes: web, crawler, company-profile worker, buyer-question worker and insights worker. A standalone question worker can be started with `npm run worker:questions` if you run processes separately.
+3. Open your project's **Questions** page. Generation uses project description, audience, market, configured brands and up to 40 recent distinct, non-rejected target-company facts. Fact values sent are capped at 600 characters; their source evidence is retained in the generation snapshot. This is contextual question generation, not an unaided visibility experiment.
+4. Existing personas/questions are preserved. Generation fills toward the baseline; reaching 30 does not silently replace edits or archived questions. If missing intent/brand coverage needs filling, a small number of extra questions may be added.
+
+Normal generation uses one persona call and six five-question batches. Output validation permits one repair per generation call. Up to ten question batches are attempted to fill gaps after duplicate removal; provider retries/backup can add attempts. All actual attempts share the same lifetime project budget as Phase 3, including failures. If limits or invalid output prevent completion, saved work remains and the job is labeled partial. No fabricated filler is added to reach 30. Start generation again to continue after resolving the issue. A cancelled or interrupted job does not auto-resume.
+
+Duplicate checks normalize case/punctuation and conversational wording while retaining meaningful differences such as brands, regions, amounts, negation and migration direction. This is a conservative lexical check, not proof of semantic uniqueness. Prompts also request distinct questions. Archived questions are included in duplicate checks; restore one instead of adding it again. The library is capped at 300 total questions and four buyer types. Generation locks library editing/selection until it stops; stale edits and stale selection updates are rejected.
+
+Recommendations are planning heuristics, not measured search demand. A $0 estimate assumes currently listed free access and account allowance; it is not a guaranteed bill or entitlement. If neither configured route can be verified, cost is shown as unavailable. Estimates cover isolated answers only, exclude answer analysis, use rough input-token counts and configured output ceilings, and state the retry limit. Provider/model/key details remain server-side.
 
 ## Landing page and workspace
 
-- `/` introduces AnswerLens, its current capabilities, workflow, and planned AI features.
+- `/` introduces AnswerLens, its current capabilities, workflow, answer results, content insights and plans.
 - `/projects` opens the existing project list, and `/onboarding` creates a project.
 - The landing page includes a responsive menu, an interactive fictional page-evidence example, and expandable questions and answers. No additional dependencies are required.
 - Workspace links now point to `/projects`. Existing project detail URLs and saved database records are unchanged.
@@ -88,9 +277,9 @@ npm run db:migrate
 npm run dev
 ```
 
-Open http://localhost:3000. `npm run dev` starts the web application, crawl worker and company-profile worker; stopping the command stops all three. The default Next port must be free. No AI key is needed for Phases 1 and 2.
+Open http://localhost:3000. `npm run dev` starts the web application plus the crawl, company-profile, buyer-question and insights workers; stopping the command stops all five processes. The default Next port must be free. No AI key is needed for Phases 1 and 2 or for manually adding/editing buyer research.
 
-Database migrations also apply automatically on the first database connection. SQLite files are written to `data/answerlens.db` by default. Keep the web application and both workers in the same project directory with the same DATABASE_PATH. Back up with a SQLite-aware backup tool, or stop all three processes before copying the database and any WAL/SHM files together.
+Database migrations also apply automatically on the first database connection. SQLite files are written to `data/answerlens.db` by default. Keep the web application and all four workers in the same project directory with the same DATABASE_PATH. Back up with a SQLite-aware backup tool, or stop all five processes before copying the database and any WAL/SHM files together.
 
 The web server binds to loopback. API requests also enforce local host and same-origin access. This is a single-user local application, not a hosted or authenticated service.
 
@@ -104,6 +293,7 @@ npm run lint
 npm run build
 npm run test:audit
 npm run test:profile
+npm run test:questions
 ```
 
 For a production-mode local session, after a successful build:
@@ -188,41 +378,46 @@ See [audit methodology](docs/audit-methodology.md) for exact thresholds and limi
 
 ### Phase 3 testing checklist
 
-These are expected results, not completed checks. Use one or two saved public pages first. Validation, retries and repairs consume allowance even on free routes.
+These are optional manual checks for the owner; they were not performed by the coding agent. The subsequent UX update passed the code-level checks listed at the top of this README. Browser/UI checks remain unperformed.
 
-#### Setup, routing and budgets
+- [ ] Add server keys and restart all five processes. Existing projects, crawls and audits remain available.
+- [ ] Run the owner verification commands above. The existing profile test source covers schemas, quotes, conflicts, model filtering, configuration bounds and redaction; it does not exercise the live workflow.
+- [ ] Open Company profile. No API-key fields, provider/model settings, token or cost tables, human-review queue, accept/reject/edit buttons or manual fact form appear.
+- [ ] Pick one or two collected pages and select **Create company profile**. Progress updates and sourced details appear automatically with no approval step.
+- [ ] Inspect several source quotes in the saved-page drawer. Quotes must occur in the supplied excerpt, with original URLs and collection times. Unsupported details must not be invented.
+- [ ] Search and filter by topic; check pagination and switch target/competitor websites. Details stay scoped to the selected website across its saved crawls.
+- [ ] If sources disagree, both claims and their sources remain visible under **Where sources differ**. Different dates or plans may explain the difference; no automatic winner is asserted.
+- [ ] Repeat an identical completed selection: saved results are reused. Enable **Generate again instead of using saved results**: fresh requests occur within budget without duplicating identical facts.
+- [ ] Stop queued and running work. Previously saved details remain available. Restart the app and confirm profile persistence.
+- [ ] Stop the profile worker mid-job and restart after three minutes. Stale work ends with a plain failure message; saved details remain. Start another profile to continue.
+- [ ] As owner, temporarily leave the primary key blank while keeping the backup configured, restart, then generate a profile. Reverse `AI_PRIMARY_PROVIDER` and repeat to check both backup paths. Restore configuration afterwards. The UI must not expose service names or keys.
+- [ ] Remove both keys, or exhaust the configured allowance. The UI shows a plain unavailable/allowance message directing users to the site owner. It does not display raw provider errors or ask users for credentials.
+- [ ] Inspect normal profile, source-selection and start-request responses: no keys, provider configuration or raw provider diagnostics. Detailed request records stay in the local database/owner diagnostics.
+- [ ] Check keyboard use and narrow layouts for page selection, filters, progress controls and the evidence drawer. Source and search inputs retain focus while progress updates.
 
-- [ ] Restart all three processes after adding keys. **Expected:** existing projects/pages/audits remain intact, Company profile opens, and provider cards show only **Key configured** or **Key missing**.
-- [ ] Run `npm run typecheck`, `npm run lint`, `npm run test:audit`, `npm run test:profile`, and `npm run build`. **Expected:** each succeeds. Profile tests cover pure schema/quote checks, conflicts, free-model filtering, settings and redaction; they do not verify live providers, the complete worker, or the UI.
-- [ ] Refresh model availability. **Expected:** explicit mappings, current catalog counts and verified common choices. Missing/unknown/paid options are not treated as available; the NVIDIA catalog count is not presented as account quota.
-- [ ] Save and validate each provider separately. **Expected:** actual provider/model and a request attempt appear in usage. Missing/invalid credentials produce a useful message without returning keys or provider error bodies.
-- [ ] Test **NVIDIA → OpenRouter** backup: keep a working OpenRouter key, temporarily leave NVIDIA's key blank, restart, choose NVIDIA primary with backup enabled, and extract one page. **Expected:** an OpenRouter backup attempt. Reverse the providers and repeat, then restore both keys. This tests missing-key routing; mark network/429/5xx recovery untested unless separately observed.
-- [ ] Repeat with backup **disabled**. **Expected:** a missing primary key blocks extraction; the other provider is not called. Shared upstream outages may still affect both providers when backup is enabled.
-- [ ] Set the total budget equal to attempts already used, or use a fresh project's one-request budget and consume it with validation. **Expected:** further inference is blocked. Increase the total ceiling and start a new extraction to authorize more. Failed attempts, retries, repairs and validation count; catalog reads and cached reuse do not.
-- [ ] Inspect browser network responses, console, page source and application logs. **Expected:** no configured key values. Do not include real keys in bug reports.
+Record each case as passed, failed or untested. Include steps, website/crawl, expected versus actual behavior and sanitized error output for failures. The owner has authorized Phase 4 implementation.
 
-#### Extraction and fact review
+### Phase 4 testing checklist
 
-- [ ] Select a website/crawl and source pages. **Expected:** the preview shows the exact source selection, 8,000-character cap, approximate tokens and request range. Nothing is sent to a model until extraction or credential validation is explicitly started.
-- [ ] Start extraction while using Website/Overview. **Expected:** the separate worker processes the job without stopping crawler progress. Proposed facts start **unreviewed**, with category, subject, attribute, value, confidence, quote, source URL and original collection time.
-- [ ] Compare several quotes with **Inspect saved page**. **Expected:** every accepted generated quote occurs in the saved excerpt sent to the model. The interpretation still requires human review; model confidence is not verified truth.
-- [ ] Accept one proposal, edit/confirm another and reject a third. **Expected:** counts and filters update, source evidence remains intact, previous revisions are visible, and editing clears the original confidence score. Refresh and restart to check persistence.
-- [ ] Edit the same fact in two browser tabs. **Expected:** the second stale save asks for refresh instead of overwriting the first review.
-- [ ] Add a manual fact using a valid saved-page quote, then try an absent quote. **Expected:** the valid fact is human-confirmed without AI; the unsupported quote is rejected. This works without provider keys.
-- [ ] Add two facts for the same website/category/subject/attribute with different values. **Expected:** both appear in a potential-contradiction group. Refine attributes for different plans/regions, or reject an incorrect fact to resolve it; no model silently chooses a winner.
-- [ ] Switch between company and competitor. **Expected:** facts and conflicts stay website-specific. Source-crawl selection changes extraction/manual sources, not the entire historical fact list. Check fact filters and pagination.
+These are checks for the owner to run; none have been executed by the coding agent.
 
-#### Cache, cancellation and recovery
+- [ ] Restart the app/workers with the existing database. Previous projects, crawls, audits and company facts remain intact; Questions navigation opens the new workspace.
+- [ ] Run the owner verification commands above, including `npm run test:questions`. The new test source covers schemas, conservative duplicate handling, brand matching and recommendation coverage; it does not validate live generation, SQLite integration or the UI.
+- [ ] With a company profile present, generate buyer research. Expect 2–4 suggested buyer types and at least 30 distinct active questions on successful completion, with both informational/commercial and branded/non-branded coverage. A partial/failed job is not a successful baseline.
+- [ ] Inspect the role, company type, pain, criteria, objections, technical familiarity and commercial importance for each buyer type. Wording must describe hypotheses rather than observed customers. Edit a type, save, refresh and confirm persistence.
+- [ ] Inspect journey stage, question type, geography, intent, relevant brands and answer needs. Questions should ask about unknown capabilities rather than assume them. Geography-sensitive wording should name the region. These are model suggestions; schema validation cannot prove semantic quality.
+- [ ] Open supporting sources for generated questions. Linked facts must belong to the generation snapshot/project; quotes, URLs and collection times remain inspectable in saved page evidence. Questions without linked facts explain what information is still needed.
+- [ ] Check that up to 20 questions are selected automatically for an initially unselected library. Change the set, clear it and use **Select suggested 20**. Selection persists across reload/restart, cannot exceed 20, and does not start any visibility run.
+- [ ] Edit a question, add a custom one and try a duplicate with changed punctuation/case or conversational filler. The duplicate is rejected, including matches in the archive. Questions about different named brands, amounts, regions or negation should remain distinct.
+- [ ] Archive a selected question: it disappears from Active and the saved selection. Restore it from Archived: it returns without being silently reselected. Repeated generation preserves edits and archives.
+- [ ] In two tabs, edit the same record or change the selection using a stale view. The second stale save asks for refresh rather than overwriting newer work. Close/reopen a stale editor after refreshing.
+- [ ] Check search, persona/stage filters, selected-only view, archived view and pagination; their counts refer to this project's library, not measured demand or AI visibility.
+- [ ] Stop queued work and then running work. Already-saved personas/questions remain. Stop the question worker mid-job, restart after the three-minute lease, and confirm stale work is ended and pending usage marked interrupted. Generate again to continue; duplicate and existing-edit safeguards remain active.
+- [ ] Test with missing server keys or exhausted allowance. Existing/custom research still opens and can be edited without keys. Generation gives a plain message; interrupted work never invents filler or marks an incomplete baseline complete. Provider names, keys and raw errors must not appear in the user workflow.
+- [ ] Estimate a future run with 1, 3 and 5 samples. For 20 selected questions, expect 20, 60 and 100 planned answers. No answer request or experiment record is created. The estimate must become stale after selection/question/sample changes and label free-access uncertainty and insufficient allowance.
+- [ ] Switch projects and verify that buyer types, questions, selections and evidence stay scoped. Check narrow layouts, keyboard focus, form labels, checkbox controls and the evidence drawer.
 
-- [ ] Repeat a completed selection with unchanged generation settings and fresh extraction unchecked. **Expected:** saved results are reused without new attempts. A different subset within the same crawl can reuse exact validated page outputs, noted in extraction history.
-- [ ] Enable **Request a fresh extraction** and repeat. **Expected:** new attempts within budget; identical saved facts and human review decisions are not overwritten. New differing proposals remain unreviewed.
-- [ ] Cancel a queued job, then a running multi-page job after one page saves. **Expected:** queued work stops, the active request is aborted where possible, and saved facts remain. Interrupted calls may still consume provider allowance.
-- [ ] Stop the profile worker during a job; restart after the three-minute lease window. **Expected:** stale work is failed, pending usage is interrupted/unknown, and facts remain. Start another extraction to continue; this is not automatic resume.
-- [ ] If invalid/truncated output occurs, inspect warnings and usage. **Expected:** one repair opportunity, then no facts accepted from the invalid page; successful pages remain available. Mark untested if not observed—the pure tests do not verify live repair behavior.
-- [ ] Inspect primary/backup/retry/repair usage where available. **Expected:** actual provider/model identities and attempt purposes, unknown usage kept unknown, and reported cost subtotals distinguished from the $0 free-route estimate.
-- [ ] Check narrow-screen and keyboard use for settings, source selection, fact reviews, the evidence drawer and usage table. **Expected:** visible focus, readable content, functional scrolling, and search input retaining focus during polling.
-
-Record each case as passed, failed or untested. For failures, capture steps, selected website/crawl or extraction, affected fact, expected/actual behavior, and full sanitized error output. Phase 4 requires a new instruction.
+Record passed, failed and untested cases with steps and sanitized errors. Phases 5–9 have now been authorized and implemented; use the additional checklists above.
 
 ## Crawl behavior
 
@@ -238,12 +433,6 @@ Record each case as passed, failed or untested. For failures, capture steps, sel
 - The page cap includes failed/skipped attempts. A run can complete below the cap when its queue is exhausted.
 - A worker interruption preserves collected pages and marks a stale run failed after its 90-second lease expires. Start a new crawl rather than resuming an incomplete Phase 1 run.
 - The worker is local and must stay running. No scheduled or continuous cloud monitoring is implemented.
-
-## Next phases
-
-Phase 4 (not started) adds personas and buyer questions. AI visibility experiments, visibility metrics, content gaps, broader recommendations, exports and the no-key seeded demonstration remain in later phases. Phase 3 provider backup and fact extraction do not constitute a visibility experiment.
-
-The UI labels future navigation as unavailable and never invents provider results or visibility scores. Company/competitor management currently lives in Project settings; the dedicated competitor analytics view arrives later.
 
 ## Design decisions
 

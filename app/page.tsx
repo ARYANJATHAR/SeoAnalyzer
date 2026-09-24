@@ -7,7 +7,7 @@ import { CapabilityCards } from "@/components/landing/capability-cards";
 import styles from "@/components/landing/landing.module.css";
 import finish from "@/components/landing/iridescent.module.css";
 
-export const metadata: Metadata = {
+import { DemoButton } from "@/components/demo-button"; export const metadata: Metadata = {
   title: "AnswerLens | AI visibility starts with evidence",
   description: "Explore your website and competitors, inspect page-level evidence, and build a stronger foundation for AI visibility research with AnswerLens.",
 };
@@ -19,14 +19,14 @@ const features = [
   { icon: History, title: "Keep the earlier picture.", body: "Run another crawl when your website changes. Return to previous collections without losing the pages you already gathered.", detail: "History you can come back to" },
 ];
 const steps = [
-  { number: "01", title: "Give your research a home.", body: "Add your company, audience, and market. Bring in the competitors you want to understand." },
-  { number: "02", title: "Choose what to collect.", body: "Review website access and sitemaps. Set your page limit, exclude paths, and start the crawl." },
-  { number: "03", title: "Look beneath the surface.", body: "Browse the inventory, inspect page evidence, and revisit any crawl from your history." },
+  { number: "01", title: "Give your research a home.", body: "Enter your website. Add company context and competitors only when you want to." },
+  { number: "02", title: "Let the research run.", body: "We collect public pages, prepare buyer questions and check independent AI answers automatically." },
+  { number: "03", title: "Look beneath the surface.", body: "Read a clear summary, explore the evidence and follow a practical 30-day and 90-day plan." },
 ];
 const questions = [
-  { question: "What can I use today?", answer: "Create projects, crawl your website and up to three competitors, and inspect technical audit findings. Connect NVIDIA or OpenRouter to propose company facts from saved pages, then review, edit, accept, or reject each fact alongside its source evidence." },
-  { question: "Does AnswerLens measure AI visibility yet?", answer: "AI experiments are planned for a later release. The current product collects the website evidence that will support them. Future measurements will name the provider, model, and sample size rather than claiming to represent every AI system." },
-  { question: "Do I need an AI API key to get started?", answer: "Website crawling, technical audits, and manually adding sourced facts work without a key. AI fact extraction uses NVIDIA or OpenRouter with optional backup routing, shared free-access models, and a project request budget. Keys stay in the server environment." },
+  { question: "What can I use today?", answer: "Create projects, crawl your website and up to three competitors, and inspect technical audit findings. Turn saved pages into a sourced company profile, then generate suggested buyer types and questions. A starting question set is selected automatically, followed by AI answer checks, content insights and an action plan." },
+  { question: "Does AnswerLens measure AI visibility yet?", answer: "Yes. It saves independent answers to buyer questions and measures brand mentions, recommendations and captured citation links within that sample. Evidence details disclose the actual model and sample size; results do not represent every AI system." },
+  { question: "How do I create a company profile?", answer: "Start with your website. AnswerLens chooses useful pages and creates the company profile automatically. Each detail remains linked to a saved source." },
   { question: "Where does my research live?", answer: "Your projects and collected pages are stored on the computer running AnswerLens. Website requests are sent to the public sites you choose to crawl. The local application and crawl worker need to stay running while pages are collected." },
   { question: "Can it crawl every page on a website?", answer: "The crawler respects robots rules, exclusions, and your chosen page cap. It collects public server HTML, so content that appears only after JavaScript runs may be incomplete. Failed or skipped pages are shown in your inventory." },
 ];
@@ -40,7 +40,7 @@ export default function Home() {
         <h1 id="hero-heading">Better AI visibility<br /><span>starts with evidence.</span></h1>
         <p className={styles.heroDescription}>Bring your website and competitors into focus. Inspect the content that tells your story, one source at a time.</p>
         <div className={styles.heroActions}><Link href="/onboarding" className={`${styles.cta} ${styles.dark}`}>Start your research <ArrowUpRight size={17} aria-hidden="true" /></Link><a href="#product" className={`${styles.cta} ${styles.stone}`}>Explore the product <ArrowDown size={16} aria-hidden="true" /></a></div>
-        <ProductExample />
+        <div className={styles.heroActions}><DemoButton /></div><ProductExample />
       </section>
 
       <div className={`${styles.container} ${styles.audienceStrip}`}><p>Made for people asking<br /><strong>better questions about their brand.</strong></p><ul aria-label="Who AnswerLens is for"><li>Marketing teams</li><li>SEO & content leads</li><li>Founders</li><li>Consultants</li></ul></div>
@@ -66,9 +66,9 @@ export default function Home() {
         <div className={styles.approachCopy}><p className={styles.sectionLabel}>A little more rigor</p><h2 id="approach-heading">Trust comes from<br />being able to look closer.</h2><p>A useful finding should lead somewhere: to a page, a passage, or an answer you can inspect. That’s the idea behind AnswerLens.</p><ul>{["Keep the original source in view.", "Separate observations from interpretations.", "Make the limits of the data clear."].map((principle) => <li key={principle}><Check size={16} aria-hidden="true" />{principle}</li>)}</ul></div>
         <div className={`${finish.frame} ${finish.teal}`}><div className={`${styles.researchPath} ${finish.surface}`} aria-label="Product development path"><div className={styles.researchPathHeader}><Aperture size={23} strokeWidth={1.3} aria-hidden="true" /><span>The evidence trail</span></div>
           <div className={`${styles.pathStep} ${styles.pathStepAvailable}`}><span className={styles.pathNode}><Globe2 size={18} aria-hidden="true" /></span><div><h3>Website evidence</h3><p>Pages, content, structure, and sources</p></div><span className={styles.availableLabel}><span />Available</span></div>
-          <div className={`${styles.pathStep} ${styles.pathStepAvailable}`}><span className={styles.pathNode}><FileSearch size={18} aria-hidden="true" /></span><div><h3>Company understanding</h3><p>Sourced facts and human review</p></div><span className={styles.availableLabel}><span />Available</span></div>
-          <div className={styles.pathStep}><span className={styles.pathNode}><Layers3 size={18} aria-hidden="true" /></span><div><h3>AI visibility experiments</h3><p>Independent answers and scoped metrics</p></div><span className={styles.plannedLabel}>Planned</span></div>
-          <div className={styles.pathStep}><span className={styles.pathNode}><ArrowUpRight size={18} aria-hidden="true" /></span><div><h3>Evidence-backed actions</h3><p>Priorities, improvements, and repeat research</p></div><span className={styles.plannedLabel}>Planned</span></div>
+          <div className={`${styles.pathStep} ${styles.pathStepAvailable}`}><span className={styles.pathNode}><FileSearch size={18} aria-hidden="true" /></span><div><h3>Company understanding</h3><p>Company details with source evidence</p></div><span className={styles.availableLabel}><span />Available</span></div>
+          <div className={styles.pathStep}><span className={styles.pathNode}><Layers3 size={18} aria-hidden="true" /></span><div><h3>AI visibility experiments</h3><p>Independent answers and scoped metrics</p></div><span className={styles.availableLabel}>Available</span></div>
+          <div className={styles.pathStep}><span className={styles.pathNode}><ArrowUpRight size={18} aria-hidden="true" /></span><div><h3>Evidence-backed actions</h3><p>Priorities, improvements, and repeat research</p></div><span className={styles.availableLabel}>Available</span></div>
           <p className={styles.pathFootnote}>Building toward a complete AI visibility research workflow, one inspectable step at a time.</p>
         </div></div>
       </section>

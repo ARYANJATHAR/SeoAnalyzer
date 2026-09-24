@@ -19,7 +19,7 @@ const responseSchema = z.object({
   usage: z.object({ prompt_tokens: z.number().int().nonnegative().optional(), completion_tokens: z.number().int().nonnegative().optional(), cost: z.number().nonnegative().optional() }).optional(),
   citations: z.array(z.string()).optional(),
 });
-export type RequestContext = { projectId: string; jobId?: string; purpose: string; settings: AiSettings; signal: AbortSignal; reuse?: boolean; onCache?: (ledgerId: string) => void };
+export type RequestContext = { projectId: string; jobId?: string; questionJobId?: string; experimentId?: string; contentRunId?: string; purpose: string; settings: AiSettings; signal: AbortSignal; reuse?: boolean; onCache?: (ledgerId: string) => void };
 export interface AiProvider {
   id: ProviderId;
   complete(messages: AiMessage[], model: string, context: RequestContext): Promise<Completion>;
@@ -61,8 +61,8 @@ class CompatibleProvider implements AiProvider {
     db.transaction((tx) => {
       const used = tx.select({ count: sql<number>`count(*)` }).from(aiUsage).where(eq(aiUsage.projectId, context.projectId)).get()!.count;
       const budget = Math.min(context.settings.requestBudget, getSettings(context.projectId).requestBudget);
-      if (used >= budget) throw new ProviderError("budget", "This project's request budget is exhausted. Increase the total budget in AI settings to authorize more requests.");
-      tx.insert(aiUsage).values({ id, projectId: context.projectId, jobId: context.jobId || null, purpose: context.purpose, provider: this.id, model, cacheKey, status: "pending", requestText: redact(JSON.stringify(messages)), createdAt }).run();
+      if (used >= budget) throw new ProviderError("budget", "This project's request budget is exhausted. The server owner can raise AI_REQUEST_BUDGET and restart to authorize more requests.");
+      tx.insert(aiUsage).values({ id, projectId: context.projectId, jobId: context.jobId || null, questionJobId: context.questionJobId || null, experimentId: context.experimentId || null, contentRunId: context.contentRunId || null, purpose: context.purpose, provider: this.id, model, cacheKey, status: "pending", requestText: redact(JSON.stringify(messages)), createdAt }).run();
     }, { behavior: "immediate" });
     let httpStatus: number | null = null;
     try {
@@ -80,7 +80,7 @@ class CompatibleProvider implements AiProvider {
       const parsed = responseSchema.safeParse(raw);
       if (!parsed.success) throw new ProviderError("response", "The provider returned an unsupported response. No facts were accepted.", true);
       const data = parsed.data, choice = data.choices[0];
-      const text = redact(choice.message.content || "");
+      const text = redact(choice.message.content || (context.purpose.startsWith("visibility-answer") ? choice.message.refusal : "") || "");
       const result: Completion = { text, provider: this.id, model, servedModel: redact(data.model || model), upstream: data.provider ? redact(data.provider) : null,
         inputTokens: data.usage?.prompt_tokens ?? null, outputTokens: data.usage?.completion_tokens ?? null, cost: data.usage?.cost ?? null,
         citations: [...new Set([...(data.citations || []), ...(choice.message.annotations || []).flatMap((annotation) => annotation.url_citation ? [annotation.url_citation.url] : [])])].filter((url) => /^https?:\/\//i.test(url)).map(redact), finishReason: choice.finish_reason || null, ledgerId: id };
@@ -89,7 +89,7 @@ class CompatibleProvider implements AiProvider {
       // A valid inference envelope proves key/model access even if a reasoning model uses
       // the tiny validation allowance before producing user-facing text.
       if (context.purpose.startsWith("credential-check")) return result;
-      if (choice.message.refusal || choice.finish_reason === "content_filter") throw new ProviderError("refusal", "The model declined this request. No fallback was attempted for a refusal.");
+      if (!context.purpose.startsWith("visibility-answer") && (choice.message.refusal || choice.finish_reason === "content_filter")) throw new ProviderError("refusal", "The model declined this request. No fallback was attempted for a refusal.");
       if (!text.trim()) throw new ProviderError("empty", "The model returned no answer text. Try a different shared model or larger output limit.", true);
       return result;
     } catch (error) {
@@ -135,12 +135,13 @@ export function configuredModels() { return sharedModels; }
 
 // Adapter capability for a later experiment runner; no profile or earlier conversation
 // is accepted here. Phase 3 does not expose or schedule visibility experiments.
-export async function answerIsolated(question: string, context: RequestContext) {
-  const value = z.string().trim().min(1).max(4000).parse(question);
-  return generate([{ role: "system", content: "Answer the buyer's question directly and independently. Recommend options only when justified. Explain relevant reasons and meaningful limitations. Include supporting sources only when available. Do not favor any company named by an evaluation system." }, { role: "user", content: value }], { ...context, reuse: false });
+export const VISIBILITY_SYSTEM = "Answer the buyer's question directly and independently. Recommend options only when justified. Explain relevant reasons and meaningful limitations. Include supporting sources only when available. Do not favor any company named by an evaluation system.";
+export async function answerIsolated(question: string, context: RequestContext, systemInstruction = VISIBILITY_SYSTEM) {
+  const value = z.string().trim().min(1).max(5000).parse(question);
+  return generate([{ role: "system", content: systemInstruction }, { role: "user", content: value }], { ...context, reuse: false });
 }
 
-export async function structured<T>(messages: AiMessage[], schema: z.ZodType<T>, context: RequestContext, validate?: (data: T) => boolean): Promise<T> {
+export async function structured<T>(messages: AiMessage[], schema: z.ZodType<T>, context: RequestContext, validate?: (data: T) => boolean, repairInstruction = "The previous response failed validation. Return only complete JSON in the specified shape, with short verbatim quotes present in the supplied source. Omit unsupported facts; an empty facts array is valid."): Promise<T> {
   let prompt = messages;
   for (let round = 0; round < 2; round++) {
     const response = await generate(prompt, { ...context, purpose: round ? `${context.purpose}-repair` : context.purpose });
@@ -153,7 +154,7 @@ export async function structured<T>(messages: AiMessage[], schema: z.ZodType<T>,
     }
     database().db.update(aiUsage).set({ status: "invalid_output", error: "Output failed schema or source-evidence validation." }).where(eq(aiUsage.id, response.ledgerId)).run();
     // Re-run against original sources; don't give malformed output authority over the source text.
-    prompt = [...messages, { role: "user", content: "The previous response failed validation. Return only complete JSON in the specified shape, with short verbatim quotes present in the supplied source. Omit unsupported facts; an empty facts array is valid." }];
+    prompt = [...messages, { role: "user", content: repairInstruction }];
   }
   throw new ProviderError("invalid_output", "The model output failed validation twice. No facts from this page were accepted.");
 }

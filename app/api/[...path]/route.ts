@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { database } from "@/db";
-import { crawlRuns, pages } from "@/db/schema";
+import { crawlRuns, pages, experimentAnswers } from "@/db/schema";
 import { getProject, listProjects, pageInventory, projectSnapshot, saveProject } from "@/db/repositories/projects";
 import { createPreview, queueCrawl, cancelCrawl } from "@/lib/crawler/service";
 import { InputError } from "@/lib/security/url";
@@ -12,6 +12,13 @@ import { getCatalog } from "@/lib/ai/catalog";
 import { saveSettings } from "@/lib/ai/config";
 import { validateCredential } from "@/lib/ai/provider";
 import { addFact, cancelExtraction, extractionPreview, factHistory, profileSnapshot, queueExtraction, reviewFact, usageSnapshot } from "@/lib/profile/service";
+import { cancelQuestionJob, experimentEstimate, questionSnapshot, queueQuestions, savePersona, saveQuestion, selectQuestions, questionEvidence } from "@/lib/questions/service";
+import { quickStart, researchSummary, startResearch, stopResearch } from "@/lib/research/service";
+
+import { changeContent, changeExperiment, estimateRun, experimentFor, importAnswers, insightSnapshot, startContent, startExperiment } from "@/lib/insights/service";
+import { exportResponse } from "@/lib/insights/reports";
+import { seedDemo } from "@/lib/insights/demo";
+import { DEMO_ID } from "@/lib/insights/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,9 +37,9 @@ function protectLocalRequest(request: NextRequest) {
   if (request.headers.get("sec-fetch-site") === "cross-site") throw new InputError("Cross-site requests are not allowed.", 403);
 }
 
-async function body(request: NextRequest): Promise<unknown> {
+async function body(request: NextRequest, limit = 32_768): Promise<unknown> {
   if (!request.headers.get("content-type")?.startsWith("application/json")) throw new InputError("Send a JSON request body.", 415);
-  if (Number(request.headers.get("content-length") || 0) > 32_768) throw new InputError("Request body is too large.", 413);
+  if (Number(request.headers.get("content-length") || 0) > limit) throw new InputError("Request body is too large.", 413);
   const reader = request.body?.getReader();
   if (!reader) throw new InputError("A JSON body is required.");
   const chunks: Uint8Array[] = [];
@@ -41,7 +48,7 @@ async function body(request: NextRequest): Promise<unknown> {
     const { value, done } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > 32_768) { await reader.cancel(); throw new InputError("Request body is too large.", 413); }
+    if (size > limit) { await reader.cancel(); throw new InputError("Request body is too large.", 413); }
     chunks.push(value);
   }
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); }
@@ -53,11 +60,40 @@ async function handle(request: NextRequest, context: Context) {
     protectLocalRequest(request);
     const { path } = await context.params;
     const [resource, id, action, subaction] = path;
-    const method = request.method;
+    const method = request.method; if (resource === "projects" && id === DEMO_ID && method !== "GET") throw new InputError("The saved demonstration is read-only. Create your own project for live research.", 409);
     const { db } = database();
     let result: unknown;
     let status = 200;
-    if (resource === "projects" && id && action === "ai" && path.length === 3 && method === "GET") result = { ...usageSnapshot(id), catalog: await getCatalog() };
+    if (resource === "demo" && path.length === 1 && method === "POST") { await body(request); result = seedDemo(); status = 201; }
+    else if (resource === "projects" && id && action === "insights" && path.length === 3 && method === "GET") result = insightSnapshot(id, Object.fromEntries(request.nextUrl.searchParams));
+    else if (resource === "projects" && id && action === "experiments" && subaction === "estimate" && path.length === 4 && method === "GET") result = estimateRun(id, Number(request.nextUrl.searchParams.get("samples") || 1));
+    else if (resource === "projects" && id && action === "experiments" && path.length === 3 && method === "POST") { result = startExperiment(id, await body(request)); status = 202; }
+    else if (resource === "projects" && id && action === "experiments" && path.length === 5 && ["stop", "resume"].includes(path[4]) && method === "POST") { await body(request); result = changeExperiment(id, subaction, path[4] as "stop" | "resume"); }
+    else if (resource === "projects" && id && action === "experiments" && path.length === 6 && path[4] === "answers" && method === "GET") {
+      const run = experimentFor(id, subaction);
+      const answer = db.select().from(experimentAnswers).where(and(eq(experimentAnswers.experimentId, run.id), eq(experimentAnswers.id, path[5]))).get();
+      if (!answer) throw new InputError("Answer not found.", 404);
+      result = { answer, facts: run.context.facts };
+    }
+    else if (resource === "projects" && id && action === "imports" && path.length === 3 && method === "POST") { result = importAnswers(id, await body(request, 300000)); status = 202; }
+    else if (resource === "projects" && id && action === "content" && path.length === 3 && method === "POST") { await body(request); result = startContent(id); status = 202; }
+    else if (resource === "projects" && id && action === "content" && path.length === 5 && ["stop", "resume"].includes(path[4]) && method === "POST") { await body(request); result = changeContent(id, subaction, path[4] as "stop" | "resume"); }
+    else if (resource === "projects" && id && action === "export" && path.length === 4 && method === "GET") return exportResponse(id, subaction);
+    else if (resource === "projects" && id === "quick-start" && path.length === 2 && method === "POST") { result = await quickStart(await body(request)); status = 201; }
+    else if (resource === "projects" && id && action === "research" && path.length === 3 && method === "GET") result = researchSummary(id);
+    else if (resource === "projects" && id && action === "research" && path.length === 3 && method === "POST") { result = startResearch(id, await body(request)); status = 202; }
+    else if (resource === "projects" && id && action === "research" && subaction === "stop" && path.length === 4 && method === "POST") { await body(request); result = stopResearch(id); }
+    else if (resource === "projects" && id && action === "questions" && path.length === 3 && method === "GET") result = questionSnapshot(id);
+    else if (resource === "projects" && id && action === "questions" && path.length === 3 && method === "POST") { result = saveQuestion(id, undefined, await body(request)); status = 201; }
+    else if (resource === "projects" && id && action === "questions" && path.length === 4 && method === "PATCH") result = saveQuestion(id, subaction, await body(request));
+    else if (resource === "projects" && id && action === "questions" && path.length === 5 && path[4] === "evidence" && method === "GET") result = questionEvidence(id, subaction);
+    else if (resource === "projects" && id && action === "question-generation" && path.length === 3 && method === "POST") { await body(request); result = queueQuestions(id); status = 202; }
+    else if (resource === "projects" && id && action === "question-generation" && path.length === 5 && path[4] === "cancel" && method === "POST") { await body(request); result = cancelQuestionJob(id, subaction); }
+    else if (resource === "projects" && id && action === "question-selection" && path.length === 3 && method === "POST") result = selectQuestions(id, await body(request));
+    else if (resource === "projects" && id && action === "question-estimate" && path.length === 3 && method === "POST") result = await experimentEstimate(id, await body(request));
+    else if (resource === "projects" && id && action === "personas" && path.length === 3 && method === "POST") { result = savePersona(id, undefined, await body(request)); status = 201; }
+    else if (resource === "projects" && id && action === "personas" && path.length === 4 && method === "PATCH") result = savePersona(id, subaction, await body(request));
+    else if (resource === "projects" && id && action === "ai" && path.length === 3 && method === "GET") result = { ...usageSnapshot(id), catalog: await getCatalog() };
     else if (resource === "projects" && id && action === "ai" && path.length === 3 && method === "PATCH") result = saveSettings(id, await body(request));
     else if (resource === "projects" && id && action === "ai" && subaction === "catalog" && path.length === 4 && method === "POST") { getProject(id); await body(request); result = await getCatalog(true); }
     else if (resource === "projects" && id && action === "ai" && subaction === "validate" && path.length === 4 && method === "POST") {
@@ -65,7 +101,7 @@ async function handle(request: NextRequest, context: Context) {
       result = await validateCredential(id, input.provider, request.signal);
     } else if (resource === "projects" && id && action === "profile" && path.length === 3 && method === "GET") result = profileSnapshot(id, request.nextUrl.searchParams.get("brandId") || undefined);
     else if (resource === "projects" && id && action === "profile" && subaction === "preview" && path.length === 4 && method === "GET") result = extractionPreview(id, request.nextUrl.searchParams.get("crawlId") || "");
-    else if (resource === "projects" && id && action === "profile" && subaction === "extract" && path.length === 4 && method === "POST") { result = queueExtraction(id, await body(request)); status = 202; }
+    else if (resource === "projects" && id && action === "profile" && subaction === "extract" && path.length === 4 && method === "POST") { const queued = queueExtraction(id, await body(request)); result = { id: queued.job.id, status: queued.job.status, reused: queued.reused }; status = 202; }
     else if (resource === "profile-jobs" && id && action === "cancel" && path.length === 3 && method === "POST") { await body(request); result = cancelExtraction(id); }
     else if (resource === "projects" && id && action === "facts" && path.length === 3 && method === "POST") { result = addFact(id, await body(request)); status = 201; }
     else if (resource === "facts" && id && path.length === 2 && method === "PATCH") result = reviewFact(id, await body(request));

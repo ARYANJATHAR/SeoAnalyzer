@@ -18,9 +18,9 @@ const cards = [
     link: "Choose your crawl scope", href: "/onboarding", value: "250", unit: "max. page attempts", label: "Website discovery", tone: "teal",
   },
   {
-    title: "Start with the website you already have",
-    description: "Discover public pages and inspect their content without an AI API key. AI analysis and visibility experiments are planned for a later release.",
-    link: "Explore the workflow", href: "#how-it-works", value: "0", unit: "AI keys to start", label: "Website evidence", tone: "rose",
+    title: "From website pages to company understanding",
+    description: "Organize products, features, customers and pricing from saved website content. Each detail includes a source quote, with no approval steps to work through.",
+    link: "Create a company profile", href: "/projects", value: "0", unit: "approval steps", label: "Company profile", tone: "rose",
   },
   {
     title: "Give your research a place to live",

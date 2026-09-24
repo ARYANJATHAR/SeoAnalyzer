@@ -2,7 +2,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { database } from "../../db";
-import { aiUsage, brands, companyFacts, crawlRuns, factRevisions, pages, profileJobs } from "../../db/schema";
+import { aiUsage, brands, companyFacts, crawlRuns, factRevisions, pages, profileJobs, researchFlows } from "../../db/schema";
 import { getProject } from "../../db/repositories/projects";
 import { getSettings, configuredKeys, redact } from "../ai/config";
 import { InputError } from "../security/url";
@@ -17,20 +17,26 @@ export function profileSnapshot(projectId: string, brandId?: string) {
   const facts = db.select().from(companyFacts).where(and(eq(companyFacts.projectId, projectId), eq(companyFacts.brandId, selected.id))).orderBy(desc(companyFacts.updatedAt)).all();
   const runs = db.select({ id: crawlRuns.id, createdAt: crawlRuns.createdAt, status: crawlRuns.status, pagesFetched: crawlRuns.pagesFetched }).from(crawlRuns).where(eq(crawlRuns.brandId, selected.id)).orderBy(desc(crawlRuns.createdAt)).limit(50).all();
   const jobs = db.select().from(profileJobs).where(and(eq(profileJobs.projectId, projectId), eq(profileJobs.brandId, selected.id))).orderBy(desc(profileJobs.createdAt)).limit(20).all();
-  return { project, sites, selectedBrandId: selected.id, facts, runs, jobs, conflicts: potentialContradictions(facts) };
+  return { project, sites, selectedBrandId: selected.id, facts, runs, analysisActive: !!db.select().from(researchFlows).where(and(eq(researchFlows.projectId, projectId), eq(researchFlows.status, "running"))).get(), jobs: jobs.map((job) => ({
+    id: job.id, status: job.status, createdAt: job.createdAt, processed: job.processed,
+    pageCount: job.pageIds.length, factsCreated: job.factsCreated, cancelRequested: job.cancelRequested,
+    message: job.status === "failed" ? "We couldn't complete this profile. Please try again later."
+      : job.status === "partial" ? "Some pages couldn't be processed. The details already collected are available below."
+      : job.status === "cancelled" ? "Stopped. Details already collected remain available." : null,
+  })), conflicts: potentialContradictions(facts) };
 }
 export type ProfileSnapshot = ReturnType<typeof profileSnapshot>;
 
 export function usageSnapshot(projectId: string) {
   getProject(projectId); const { db } = database();
   const total = db.select({ attempts: sql<number>`count(*)`, inputTokens: sql<number | null>`sum(${aiUsage.inputTokens})`, outputTokens: sql<number | null>`sum(${aiUsage.outputTokens})`, knownCost: sql<number | null>`sum(${aiUsage.cost})`, unknownUsage: sql<number>`sum(case when ${aiUsage.inputTokens} is null or ${aiUsage.outputTokens} is null then 1 else 0 end)`, unknownCost: sql<number>`sum(case when ${aiUsage.cost} is null then 1 else 0 end)` }).from(aiUsage).where(eq(aiUsage.projectId, projectId)).get()!;
-  const entries = db.select({ id: aiUsage.id, jobId: aiUsage.jobId, purpose: aiUsage.purpose, provider: aiUsage.provider, model: aiUsage.model, servedModel: aiUsage.servedModel, upstream: aiUsage.upstream, status: aiUsage.status, inputTokens: aiUsage.inputTokens, outputTokens: aiUsage.outputTokens, cost: aiUsage.cost, error: aiUsage.error, createdAt: aiUsage.createdAt, completedAt: aiUsage.completedAt }).from(aiUsage).where(eq(aiUsage.projectId, projectId)).orderBy(desc(aiUsage.createdAt)).limit(100).all();
+  const entries = db.select({ id: aiUsage.id, jobId: aiUsage.jobId, questionJobId: aiUsage.questionJobId, purpose: aiUsage.purpose, provider: aiUsage.provider, model: aiUsage.model, servedModel: aiUsage.servedModel, upstream: aiUsage.upstream, status: aiUsage.status, inputTokens: aiUsage.inputTokens, outputTokens: aiUsage.outputTokens, cost: aiUsage.cost, error: aiUsage.error, createdAt: aiUsage.createdAt, completedAt: aiUsage.completedAt }).from(aiUsage).where(eq(aiUsage.projectId, projectId)).orderBy(desc(aiUsage.createdAt)).limit(100).all();
   const settings = getSettings(projectId);
   return { total, entries, remaining: Math.max(0, settings.requestBudget - total.attempts), settings, keys: configuredKeys() };
 }
 export type UsageSnapshot = ReturnType<typeof usageSnapshot>;
 
-export function extractionPreview(projectId: string, crawlId: string) {
+function prepareExtraction(projectId: string, crawlId: string) {
   getProject(projectId); const { db } = database();
   const crawl = db.select().from(crawlRuns).where(and(eq(crawlRuns.id, crawlId), eq(crawlRuns.projectId, projectId))).get();
   if (!crawl) throw new InputError("Crawl not found in this project.", 404);
@@ -43,14 +49,18 @@ export function extractionPreview(projectId: string, crawlId: string) {
   return { crawlId, brandId: crawl.brandId, crawlStatus: crawl.status, sources, suggestedIds: sources.slice(0, settings.pageLimit).map((p) => p.id), settings,
     note: "Only selected public page text and its URL are sent to the chosen provider, and to the backup if enabled. Up to 8,000 characters per page. Project notes and confirmed facts are not sent. Provider data policies apply; the two endpoints may share upstream infrastructure." };
 }
+export function extractionPreview(projectId: string, crawlId: string) {
+  const preview = prepareExtraction(projectId, crawlId);
+  return { crawlId: preview.crawlId, sources: preview.sources, suggestedIds: preview.suggestedIds, pageLimit: preview.settings.pageLimit };
+}
 export type ExtractionPreview = ReturnType<typeof extractionPreview>;
 
 export function queueExtraction(projectId: string, input: unknown) {
   const data = z.object({ crawlId: z.string().uuid(), pageIds: z.array(z.string().uuid()).min(1).max(12), force: z.boolean().default(false) }).strict().parse(input);
-  const preview = extractionPreview(projectId, data.crawlId), { db } = database();
+  const preview = prepareExtraction(projectId, data.crawlId), { db } = database();
   const pageIds = [...new Set(data.pageIds)].sort();
   if (pageIds.length > preview.settings.pageLimit || pageIds.some((id) => !preview.sources.some((source) => source.id === id))) throw new InputError("Select collected pages within the configured extraction limit.");
-  const keys = configuredKeys(); if (!keys[preview.settings.primary] && !(preview.settings.fallback && (keys.nvidia || keys.openrouter))) throw new InputError("Configure a provider key in the server environment first.");
+  const keys = configuredKeys(); if (!keys[preview.settings.primary] && !(preview.settings.fallback && (keys.nvidia || keys.openrouter))) throw new InputError("Company profiles are temporarily unavailable. Please contact the site owner.", 503);
   const { model, primary, fallback, maxTokens, temperature } = preview.settings;
   const cacheKey = createHash("sha256").update(JSON.stringify({ crawlId: data.crawlId, pageIds, settings: { model, primary, fallback, maxTokens, temperature }, version: PROMPT_VERSION })).digest("hex");
   return db.transaction((tx) => {
@@ -58,7 +68,7 @@ export function queueExtraction(projectId: string, input: unknown) {
     const existing = tx.select().from(profileJobs).where(and(eq(profileJobs.projectId, projectId), eq(profileJobs.cacheKey, cacheKey), eq(profileJobs.status, "completed"))).get();
     if (existing && !data.force) return { job: existing, reused: true };
     const used = tx.select({ count: sql<number>`count(*)` }).from(aiUsage).where(eq(aiUsage.projectId, projectId)).get()!.count;
-    if (preview.settings.requestBudget - used < pageIds.length) throw new InputError("The remaining request budget is below one request per selected page. Increase it or select fewer pages.");
+    if (preview.settings.requestBudget - used < pageIds.length) throw new InputError("This project's analysis allowance has been reached. Please contact the site owner.", 409);
     const job = tx.insert(profileJobs).values({ id: randomUUID(), projectId, brandId: preview.brandId, crawlRunId: data.crawlId, status: "queued", settings: preview.settings, pageIds, cacheKey, promptVersion: PROMPT_VERSION, force: data.force, warnings: [], createdAt: new Date().toISOString() }).returning().get()!;
     return { job, reused: false };
   }, { behavior: "immediate" });

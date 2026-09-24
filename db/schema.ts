@@ -2,6 +2,7 @@ import { index, integer, real, sqliteTable, text, unique } from "drizzle-orm/sql
 import type { AiSettings, FactSource, FactStatus, ProviderId } from "../lib/ai/types";
 import type { CrawlSettings, Discovery, Heading, PageStatus, Redirect, RunStatus, SchemaEntry } from "../lib/types";
 import type { Evidence, RuleCoverage, Severity, SiteSignals, TechnicalSignals } from "../lib/audit/types";
+import type { JourneyStage, QuestionType, ResearchContext } from "../lib/questions/types";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(), name: text("name").notNull(),
@@ -106,11 +107,12 @@ export const profileJobs = sqliteTable("profile_jobs", {
 }, (t) => [index("profile_jobs_project_idx").on(t.projectId), index("profile_jobs_status_idx").on(t.status)]);
 export const aiUsage = sqliteTable("ai_usage", {
   id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id), jobId: text("job_id").references(() => profileJobs.id),
-  purpose: text("purpose").notNull(), provider: text("provider").$type<ProviderId>().notNull(), model: text("model").notNull(), servedModel: text("served_model"), upstream: text("upstream"),
+  experimentId: text("experiment_id").references(() => experiments.id), contentRunId: text("content_run_id").references(() => contentRuns.id), purpose: text("purpose").notNull(), provider: text("provider").$type<ProviderId>().notNull(), model: text("model").notNull(), servedModel: text("served_model"), upstream: text("upstream"),
   cacheKey: text("cache_key"),
+  questionJobId: text("question_job_id").references(() => questionJobs.id),
   status: text("status").notNull(), httpStatus: integer("http_status"), inputTokens: integer("input_tokens"), outputTokens: integer("output_tokens"), cost: real("cost"),
   error: text("error"), requestText: text("request_text").notNull(), responseText: text("response_text"), createdAt: text("created_at").notNull(), completedAt: text("completed_at"),
-}, (t) => [index("ai_usage_project_idx").on(t.projectId), index("ai_usage_cache_idx").on(t.projectId, t.cacheKey)]);
+}, (t) => [index("ai_usage_project_idx").on(t.projectId), index("ai_usage_cache_idx").on(t.projectId, t.cacheKey), index("ai_usage_question_job_idx").on(t.questionJobId)]);
 export const companyFacts = sqliteTable("company_facts", {
   id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id), brandId: text("brand_id").notNull().references(() => brands.id), jobId: text("job_id").references(() => profileJobs.id),
   category: text("category").notNull(), subject: text("subject").notNull(), attribute: text("attribute").notNull(), value: text("value").notNull(), confidence: real("confidence"),
@@ -123,6 +125,37 @@ export const factRevisions = sqliteTable("fact_revisions", {
   snapshot: text("snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(), createdAt: text("created_at").notNull(),
 });
 export type ProfileJob = typeof profileJobs.$inferSelect;
+export const questionJobs = sqliteTable("question_jobs", {
+  id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id),
+  status: text("status").$type<"queued" | "running" | "completed" | "partial" | "failed" | "cancelled">().notNull(),
+  settings: text("settings", { mode: "json" }).$type<AiSettings>().notNull(), context: text("context", { mode: "json" }).$type<ResearchContext>().notNull(), promptVersion: text("prompt_version").notNull(),
+  attempts: integer("attempts").notNull().default(0), questionsCreated: integer("questions_created").notNull().default(0), error: text("error"), workerId: text("worker_id"), heartbeatAt: text("heartbeat_at"),
+  cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false), createdAt: text("created_at").notNull(), completedAt: text("completed_at"),
+}, (t) => [index("question_jobs_status_idx").on(t.status), index("question_jobs_project_idx").on(t.projectId)]);
+export const buyerPersonas = sqliteTable("buyer_personas", {
+  id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id), jobId: text("job_id").references(() => questionJobs.id),
+  role: text("role").notNull(), companyType: text("company_type").notNull(), primaryPain: text("primary_pain").notNull(), purchaseCriteria: text("purchase_criteria", { mode: "json" }).$type<string[]>().notNull(), objections: text("objections", { mode: "json" }).$type<string[]>().notNull(),
+  sophistication: text("sophistication").$type<"low" | "medium" | "high">().notNull(), importance: integer("importance").notNull(), rationale: text("rationale").notNull(), sourceFactIds: text("source_fact_ids", { mode: "json" }).$type<string[]>().notNull(), origin: text("origin").$type<"generated" | "user-created">().notNull(),
+  revision: integer("revision").notNull().default(1), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+}, (t) => [index("buyer_personas_project_idx").on(t.projectId)]);
+export const buyerQuestions = sqliteTable("buyer_questions", {
+  id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id), jobId: text("job_id").references(() => questionJobs.id), personaId: text("persona_id").notNull().references(() => buyerPersonas.id),
+  text: text("text").notNull(), normalizedText: text("normalized_text").notNull(), stage: text("stage").$type<JourneyStage>().notNull(), type: text("type").$type<QuestionType>().notNull(), geography: text("geography").notNull(), intent: integer("intent").notNull(),
+  expectedBrandIds: text("expected_brand_ids", { mode: "json" }).$type<string[]>().notNull(), targetFactIds: text("target_fact_ids", { mode: "json" }).$type<string[]>().notNull(), targetFactNeeds: text("target_fact_needs", { mode: "json" }).$type<string[]>().notNull(), branded: integer("branded", { mode: "boolean" }).notNull(),
+  origin: text("origin").$type<"generated" | "user-created" | "imported" | "page-gap">().notNull(), status: text("status").$type<"active" | "archived">().notNull().default("active"), selected: integer("selected", { mode: "boolean" }).notNull().default(false),
+  revision: integer("revision").notNull().default(1), createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+}, (t) => [index("buyer_questions_project_idx").on(t.projectId), unique("buyer_questions_text_idx").on(t.projectId, t.normalizedText)]);
+export type QuestionJob = typeof questionJobs.$inferSelect;
+export const researchFlows = sqliteTable("research_flows", {
+  id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id), brandId: text("brand_id").notNull().references(() => brands.id),
+  status: text("status").$type<"running" | "completed" | "partial" | "cancelled">().notNull().default("running"),
+  stage: text("stage").$type<"collecting" | "profile" | "questions" | "competitors" | "visibility" | "content">().notNull().default("collecting"), refresh: integer("refresh", { mode: "boolean" }).notNull().default(false),
+  crawlId: text("crawl_id").references(() => crawlRuns.id), profileJobId: text("profile_job_id").references(() => profileJobs.id), questionJobId: text("question_job_id").references(() => questionJobs.id),
+  experimentId: text("experiment_id").references(() => experiments.id), contentRunId: text("content_run_id").references(() => contentRuns.id), relatedJobs: text("related_jobs", { mode: "json" }).$type<{ crawls: string[]; profiles: string[]; failedBrands?: string[] }>().notNull().default({ crawls: [], profiles: [] }), incomplete: integer("incomplete", { mode: "boolean" }).notNull().default(false), message: text("message"), leaseToken: text("lease_token"), leaseUntil: integer("lease_until").notNull().default(0), createdAt: text("created_at").notNull(), completedAt: text("completed_at"),
+}, (t) => [index("research_flows_queue_idx").on(t.status, t.leaseUntil)]);
+export type ResearchFlow = typeof researchFlows.$inferSelect;
+export type BuyerPersona = typeof buyerPersonas.$inferSelect;
+export type BuyerQuestion = typeof buyerQuestions.$inferSelect;
 export type CompanyFact = typeof companyFacts.$inferSelect;
 export type AuditRun = typeof auditRuns.$inferSelect;
 
@@ -131,3 +164,31 @@ export type Brand = typeof brands.$inferSelect;
 export type CrawlRun = typeof crawlRuns.$inferSelect;
 export type Page = typeof pages.$inferSelect;
 export type PageSummary = Pick<Page, "id" | "url" | "finalUrl" | "title" | "status" | "statusCode" | "wordCount" | "error" | "fetchedAt" | "brandId" | "crawlRunId">;
+
+export const experiments = sqliteTable("experiments", {
+  id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id),
+  mode: text("mode").$type<"api" | "manual" | "demo">().notNull(),
+  context: text("context", { mode: "json" }).$type<import("../lib/insights/types").ExperimentContext>().notNull(),
+  status: text("status").$type<import("../lib/insights/types").State>().notNull().default("queued"),
+  cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false),
+  workerId: text("worker_id"), heartbeatAt: text("heartbeat_at"), error: text("error"),
+  createdAt: text("created_at").notNull(), completedAt: text("completed_at"),
+}, (t) => [index("experiments_project_idx").on(t.projectId, t.createdAt)]);
+export const experimentAnswers = sqliteTable("experiment_answers", {
+  id: text("id").primaryKey(), experimentId: text("experiment_id").notNull().references(() => experiments.id, { onDelete: "cascade" }),
+  ordinal: integer("ordinal").notNull(), status: text("status").$type<"pending" | "answered" | "completed" | "failed">().notNull().default("pending"),
+  payload: text("payload", { mode: "json" }).$type<import("../lib/insights/types").AnswerPayload>().notNull(), error: text("error"), updatedAt: text("updated_at").notNull(),
+}, (t) => [index("experiment_answers_run_idx").on(t.experimentId), unique("experiment_answer_ordinal").on(t.experimentId, t.ordinal)]);
+export const contentRuns = sqliteTable("content_runs", {
+  id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id),
+  context: text("context", { mode: "json" }).$type<import("../lib/insights/types").ContentContext>().notNull(),
+  result: text("result", { mode: "json" }).$type<import("../lib/insights/types").ContentResult>().notNull(),
+  status: text("status").$type<import("../lib/insights/types").State>().notNull().default("queued"),
+  cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false),
+  workerId: text("worker_id"), heartbeatAt: text("heartbeat_at"), error: text("error"),
+  createdAt: text("created_at").notNull(), completedAt: text("completed_at"),
+}, (t) => [index("content_runs_project_idx").on(t.projectId, t.createdAt)]);
+export type Experiment = typeof experiments.$inferSelect;
+export type ExperimentAnswer = typeof experimentAnswers.$inferSelect;
+export type ContentRun = typeof contentRuns.$inferSelect;
+

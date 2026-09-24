@@ -96,6 +96,7 @@ export function Workspace({ projectId, view }: { projectId: string; view: View }
   const openDiscovery = () => { setShowDiscovery(true); setTimeout(() => document.getElementById("crawl-discovery")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20); };
 
   return <Shell projectId={projectId} projectName={project.name} action={<button className="button primary small" onClick={openDiscovery}><RefreshCw size={14} />New crawl</button>}><main id="main" className="main">
+    {view !== "settings" && <Link href={`/projects/${projectId}/website`} className="back-link">← Back to the simple website summary</Link>}
     {error && <div className="notice" role="alert"><CircleAlert size={18} /><p>{error}</p><button className="icon-button" aria-label="Dismiss error" onClick={() => setError("")}><X size={16} /></button></div>}
     {notice && <div className="notice success" role="status"><Check size={17} /><p>{notice}</p><button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice("")}><X size={16} /></button></div>}
     {view === "settings" ? <><ProjectForm key={project.id} project={project} brands={brands} onSaved={() => { setPreviews({}); refresh(); }} />{showDiscovery && <p className="notice">Save your settings first, then <Link href={`/projects/${projectId}/website`}>open Website to start a crawl</Link>.</p>}</> : <>
